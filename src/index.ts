@@ -61,6 +61,18 @@ async function main() {
             this._container = document.createElement('div');
             this._container.classList.add('container');
 
+            // 👇 Кнопка-переключатель меню
+            const toggleButton = document.createElement('button');
+            toggleButton.classList.add('menu-toggle');
+            toggleButton.type = 'button';
+            toggleButton.textContent = '☰';
+            toggleButton.title = 'Скрыть / показать меню';
+            toggleButton.addEventListener('click', () => {
+              const isHidden = this._element!.classList.toggle('menu--hidden');
+              toggleButton.textContent = isHidden ? '☰' : '×';
+            });
+            this._element.appendChild(toggleButton);
+
             const titleElement = document.createElement('div');
             titleElement.textContent = 'What to do in the city';
             titleElement.classList.add('menu__title');
