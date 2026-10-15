@@ -37,7 +37,7 @@ async function main() {
 
     const markersState: MarkersState = {};
 
-    // 👇 НОВОЕ — центрирование карты на точке
+    // 👇 Центрирование карты на точке
     function focusOnPoint(lng: number, lat: number) {
         window.map.setLocation({
             center: [lng, lat],
@@ -56,27 +56,39 @@ async function main() {
         }
 
         _createMenu() {
+            // 👇 ОБЁРТКА — держит и кнопку, и меню
             this._element = document.createElement('div');
-            this._element.classList.add('menu');
-            this._container = document.createElement('div');
-            this._container.classList.add('container');
+            this._element.classList.add('menu-wrapper');
 
-            // 👇 Кнопка-переключатель меню
+            // Кнопка-переключатель — СНАРУЖИ сворачиваемого блока
             const toggleButton = document.createElement('button');
             toggleButton.classList.add('menu-toggle');
             toggleButton.type = 'button';
             toggleButton.textContent = '☰';
             toggleButton.title = 'Скрыть / показать меню';
-            toggleButton.addEventListener('click', () => {
-              const isHidden = this._element!.classList.toggle('menu--hidden');
-              toggleButton.textContent = isHidden ? '☰' : '×';
-            });
             this._element.appendChild(toggleButton);
 
+            // Сворачиваемый блок меню
+            const menuBody = document.createElement('div');
+            menuBody.classList.add('menu');
+            this._element.appendChild(menuBody);
+
+            // Обработчик клика — сворачивает menuBody, кнопка остаётся на месте
+            toggleButton.addEventListener('click', () => {
+                const isHidden = menuBody.classList.toggle('menu--hidden');
+                toggleButton.textContent = isHidden ? '☰' : '×';
+            });
+
+            // Заголовок — внутрь menuBody
             const titleElement = document.createElement('div');
             titleElement.textContent = 'What to do in the city';
             titleElement.classList.add('menu__title');
-            this._element.appendChild(titleElement);
+            menuBody.appendChild(titleElement);
+
+            // Контейнер для групп — тоже внутрь menuBody
+            this._container = document.createElement('div');
+            this._container.classList.add('container');
+            menuBody.appendChild(this._container);
 
             this._props.groupsProps.forEach((group) => {
                 const divElement = document.createElement('div');
@@ -169,7 +181,7 @@ async function main() {
                     markLabelElement.classList.add('menu__checkbox_title');
                     markLabelElement.textContent = mark.title;
 
-                    // 👇 НОВОЕ — клик по названию центрирует карту
+                    // 👇 Клик по названию центрирует карту
                     markLabelElement.style.cursor = 'pointer';
                     markLabelElement.addEventListener('click', (e) => {
                         e.preventDefault();
@@ -185,8 +197,8 @@ async function main() {
                 this._container!.appendChild(divElement);
             });
 
-            this._element.appendChild(this._container);
-            this._detachDom = ymaps3.useDomContext(this, this._element, this._container);
+            // Регистрируем DOM-контекст на обёртке
+            this._detachDom = ymaps3.useDomContext(this, this._element, this._element);
         }
 
         protected _onDetach(): void {
@@ -208,27 +220,32 @@ async function main() {
     window.map = new YMap(
         document.getElementById('app')!,
         { location: LOCATION, showScaleInCopyrights: true },
-        [new YMapDefaultSchemeLayer({
-    customization: [
-        // Скрываем иконки и подписи POI (магазины, банкоматы и т.д.)
-        {
-            tags: { any: ['poi'] },
-            elements: 'label.icon',
-            stylers: [{ opacity: 0 }]
-        },
-        {
-            tags: { any: ['poi'] },
-            elements: 'label.text.fill',
-            stylers: [{ opacity: 0 }]
-        },
-        // Скрываем подписи улиц (если нужно)
-        {
-            tags: { any: ['street'] },
-            elements: 'label',
-            stylers: [{ opacity: 0 }]
-        }
-    ]
-}), new YMapDefaultFeaturesLayer({}), controls]
+        [
+            new YMapDefaultSchemeLayer({
+                customization: [
+                    // Скрываем иконки POI (магазины, банкоматы и т.д.)
+                    {
+                        tags: { any: ['poi'] },
+                        elements: 'label.icon',
+                        stylers: [{ opacity: 0 }]
+                    },
+                    // Скрываем текст POI
+                    {
+                        tags: { any: ['poi'] },
+                        elements: 'label.text.fill',
+                        stylers: [{ opacity: 0 }]
+                    },
+                    // Скрываем подписи улиц
+                    {
+                        tags: { any: ['street'] },
+                        elements: 'label',
+                        stylers: [{ opacity: 0 }]
+                    }
+                ]
+            }),
+            new YMapDefaultFeaturesLayer({}),
+            controls
+        ]
     );
 
     groupsProps.forEach((group) => {
