@@ -39,7 +39,7 @@ function buildGroups(points: AddressPoint[]): GroupPropTypes[] {
 
         map.get(name)!.marks.push({
             coordinates: [point.lng, point.lat],
-            title: `${point.id} — ${stripCity(point.address)}`,
+            title: `${point.id}`,
             id: point.id
         });
     });
