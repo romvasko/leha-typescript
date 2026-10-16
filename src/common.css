@@ -13,6 +13,12 @@ html, body, #app {
     align-items: flex-end;
     gap: 8px;
     pointer-events: none; /* чтобы обёртка не блокировала карту */
+
+    /* Ограничиваем высоту — блок больше не растягивается */
+height: fit-content;
+max-height: 100%;
+align-self: flex-start;
+background: transparent
 }
 
 /* Кликабельные элементы внутри обёртки возвращают pointer-events */
