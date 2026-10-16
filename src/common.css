@@ -108,3 +108,18 @@ background: transparent
     transform: scale(0.95);
     pointer-events: none;
 }
+
+/* Убираем растяжение родительского контрола на всю высоту */
+.ymaps3--control {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    align-self: flex-start !important;
+}
+
+/* Убираем белый фон и тень у самого контрола — они нам не нужны */
+.ymaps3--control__background {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
