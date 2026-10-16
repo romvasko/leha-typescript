@@ -37,13 +37,20 @@ async function main() {
 
     const markersState: MarkersState = {};
 
-    // 👇 Центрирование карты на точке
     function focusOnPoint(lng: number, lat: number) {
+        // 1. Сначала просто перемещаем центр карты без указания зума
         window.map.setLocation({
             center: [lng, lat],
-            zoom: 14,
             duration: 500
         });
+
+        // 2. Через небольшую паузу (чтобы анимация завершилась) задаём нужный зум
+        setTimeout(() => {
+            window.map.setLocation({
+                zoom: 14,
+                duration: 300
+            });
+        }, 500);
     }
 
     class CustomMenuControl extends YMapGroupEntity<CustomMenuControlProps> {
