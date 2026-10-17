@@ -116,7 +116,6 @@ background: transparent
     min-height: 0 !important;
     max-height: 100% !important;
     align-self: flex-start !important;
-    pointer-events: none !important;
 }
 
 /* Убираем белый фон и тень у самого контрола — они нам не нужны */
