@@ -219,7 +219,7 @@ async function main() {
 
     window.map = new YMap(
         document.getElementById('app')!,
-        { location: LOCATION, showScaleInCopyrights: true, behaviors: ['drag', 'pinchZoom'] },
+        { location: LOCATION, showScaleInCopyrights: true, behaviors: ['drag', 'pinchZoom', 'scrollZoom'] },
         [
             new YMapDefaultSchemeLayer({
                 customization: [
