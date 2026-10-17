@@ -41,10 +41,9 @@ async function main() {
         // Устанавливаем центр и зум ОДНИМ вызовом setLocation
         window.map.setLocation({
             center: [lng, lat],
-            zoom: 14
+            zoom: 14,
+            duration: 500
         });
-        // Принудительно включаем жесты после центрирования
-        window.map.setBehaviors(['drag', 'pinchZoom', 'scrollZoom']);
     }
 
     class CustomMenuControl extends YMapGroupEntity<CustomMenuControlProps> {
