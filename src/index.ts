@@ -39,14 +39,14 @@ async function main() {
 
     function focusOnPoint(lng: number, lat: number) {
         // 1. Сначала просто перемещаем центр карты без указания зума
-        window.map.setLocation({
+        window.map.update({
             center: [lng, lat],
             duration: 500
         });
 
         // 2. Через небольшую паузу (чтобы анимация завершилась) задаём нужный зум
         setTimeout(() => {
-            window.map.setLocation({
+            window.map.update({
                 zoom: 14,
                 duration: 300
             });
