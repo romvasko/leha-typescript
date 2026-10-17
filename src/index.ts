@@ -30,8 +30,6 @@ async function main() {
 
     // @ts-expect-error — типы ymaps3.import не знают про default-ui-theme
     const { YMapDefaultMarker } = await ymaps3.import('@yandex/ymaps3-default-ui-theme');
-    // Загружаем пакет с контролами
-    const { YMapZoomControl } = await ymaps3.import('@yandex/ymaps3-controls@0.0.1');
 
     interface CustomMenuControlProps {
         groupsProps: Array<GroupPropTypes>;
@@ -216,13 +214,6 @@ async function main() {
         orientation: 'vertical'
     });
     const control = new YMapControl({});
-
-    const zoomControls = new YMapControls({
-    position: 'left',
-    orientation: 'vertical'
-    });
-
-    zoomControls.addChild(new YMapZoomControl({}));
     control.addChild(new CustomMenuControl({ groupsProps }));
     controls.addChild(control);
 
@@ -253,8 +244,7 @@ async function main() {
                 ]
             }),
             new YMapDefaultFeaturesLayer({}),
-            controls,
-            zoomControls
+            controls
         ]
     );
 
