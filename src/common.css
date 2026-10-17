@@ -127,5 +127,5 @@ background: transparent
 }
 
 .ymaps3--map {
-    touch-action: auto !important;
+    touch-action: auto;
 }
