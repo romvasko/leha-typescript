@@ -42,6 +42,7 @@ background: transparent
     justify-content: center;
     transition: background 0.15s;
     flex-shrink: 0;
+    pointer-events: auto;
 }
 
 .menu-toggle:hover {
@@ -115,6 +116,7 @@ background: transparent
     min-height: 0 !important;
     max-height: 100% !important;
     align-self: flex-start !important;
+    pointer-events: none;
 }
 
 /* Убираем белый фон и тень у самого контрола — они нам не нужны */
