@@ -41,6 +41,7 @@ async function main() {
         // Устанавливаем центр и зум ОДНИМ вызовом setLocation
         window.map.setLocation({
             center: [lng, lat],
+            zoom: 14,
             duration: 500
         });
     }
