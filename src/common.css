@@ -109,14 +109,12 @@ background: transparent
     pointer-events: none;
 }
 
-/* Убираем растяжение родительского контрола и отключаем перехват кликов */
+/* Убираем растяжение родительского контрола на всю высоту */
 .ymaps3--control {
     height: auto !important;
     min-height: 0 !important;
-    max-height: fit-content !important;
+    max-height: 100% !important;
     align-self: flex-start !important;
-    pointer-events: none !important; /* 👈 Главное исправление */
-    background: transparent !important;
 }
 
 /* Убираем белый фон и тень у самого контрола — они нам не нужны */
@@ -126,14 +124,6 @@ background: transparent
     padding: 0 !important;
 }
 
-/* Карта должна принимать жесты */
 .ymaps3--map {
     touch-action: auto !important;
-}
-
-/* Возвращаем кликабельность только для кнопки и выпадающего меню */
-.menu-wrapper,
-.menu-toggle,
-.menu {
-    pointer-events: auto !important;
 }
