@@ -162,18 +162,26 @@ async function main() {
                 inputElement.checked = true;
 
                 // 👇 Обработчик для ГРУППЫ (города)
+                // 👇 Обработчик для ГРУППЫ (города)
                 inputElement.addEventListener('change', (event) => {
                     const checked = (event.target as HTMLInputElement).checked;
 
+                    // Визуально ставим/снимаем галочки у всех дочерних элементов
                     const childCheckboxes = divElement.querySelectorAll<HTMLInputElement>('.child-mark');
                     childCheckboxes.forEach((cb) => (cb.checked = checked));
 
-                    group.marks.forEach(mark => {
+                    group.marks.forEach((mark: any) => {
+                        // 👇 ГЛАВНЫЙ ФИКС:
+                        // Если мы ВКЛЮЧАЕМ группу, то активируем только те адреса,
+                        // которые изначально входят в выбранный день (isActive !== false).
+                        // Если ВЫКЛЮЧАЕМ — выключаем все.
+                        const shouldBeActive = checked ? (mark.isActive !== false) : false;
+
                         const oldMarker = markersState[group.id][mark.id];
                         if (oldMarker && window.map) window.map.removeChild(oldMarker);
 
-                        // Создаем новый маркер (активный или серый)
-                        const newMarker = createMarker(mark.coordinates, mark.title, group.color, checked);
+                        // Создаем новый маркер с учетом флага
+                        const newMarker = createMarker(mark.coordinates, mark.title, group.color, shouldBeActive);
                         markersState[group.id][mark.id] = newMarker;
                         if (window.map) window.map.addChild(newMarker);
                     });
@@ -236,7 +244,7 @@ async function main() {
                 const allCheckboxes = divElement.querySelectorAll<HTMLInputElement>('.child-mark');
                 const anyChecked = Array.from(allCheckboxes).some(cb => cb.checked);
                 inputElement.checked = anyChecked;
-                
+
                 this._container!.appendChild(divElement);
             });
         }
