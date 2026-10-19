@@ -52,6 +52,32 @@ async function main() {
             this._createMenu();
         }
 
+        // 👇 Публичный метод для инициализации маркеров, когда карта готова
+        public initMarkersOnMap() {
+            this._currentGroups.forEach((group) => {
+                group.marks.forEach((mark) => {
+                    // Проверяем, нет ли уже маркера
+                    if (!markersState[group.id]?.[mark.id]) {
+                        const newMarker = new YMapDefaultMarker({
+                            coordinates: mark.coordinates,
+                            iconName: 'fallback',
+                            size: 'small',
+                            title: mark.title,
+                            color: { day: group.color, night: group.color } as any,
+                            draggable: false
+                        } as any);
+
+                        if (!markersState[group.id]) markersState[group.id] = {};
+                        markersState[group.id][mark.id] = newMarker;
+
+                        if (window.map) {
+                            window.map.addChild(newMarker);
+                        }
+                    }
+                });
+            });
+        }
+
         _createMenu() {
             // 👇 ОБЁРТКА — держит и кнопку, и меню
             this._element = document.createElement('div');
@@ -109,6 +135,11 @@ async function main() {
                 // 3. Получаем новые данные и рисуем
                 this._currentGroups = buildGroupsForDay(selectedDay);
                 this._renderGroups(this._currentGroups);
+
+                // 👇 4. Добавляем новые маркеры на карту, если она уже есть
+                if (window.map) {
+                    this.initMarkersOnMap();
+                }
             });
 
             // 👇 Первичная отрисовка (по умолчанию Понедельник)
@@ -123,15 +154,15 @@ async function main() {
         _clearAllMarkers() {
             Object.values(markersState).forEach(group => {
                 Object.values(group).forEach(marker => {
-                    if (marker) window.map.removeChild(marker);
+                    if (marker && window.map) window.map.removeChild(marker);
                 });
             });
             // Очищаем объект состояния
             for (const key in markersState) delete markersState[key];
         }
 
-        // 👇 Метод отрисовки меню и добавления маркеров
-        _renderGroups(groups: GroupPropTypes[]) {
+        // 👇 Метод отрисовки меню
+        public _renderGroups(groups: GroupPropTypes[]) {
             groups.forEach((group) => {
                 // Инициализируем состояние для группы
                 if (!markersState[group.id]) markersState[group.id] = {};
@@ -169,12 +200,12 @@ async function main() {
                                     draggable: false
                                 } as any);
                                 markersState[group.id][id] = newMarker;
-                                window.map.addChild(newMarker);
+                                if (window.map) window.map.addChild(newMarker);
                             }
                         });
                     } else {
                         Object.values(markersState[group.id]).forEach((marker) => {
-                            if (marker) window.map.removeChild(marker);
+                            if (marker && window.map) window.map.removeChild(marker);
                         });
                         // Не удаляем ключи, а просто ставим null, чтобы можно было вернуть
                         Object.keys(markersState[group.id]).forEach(key => {
@@ -219,10 +250,12 @@ async function main() {
                                     draggable: false
                                 } as any);
                                 markersState[group.id][mark.id] = newMarker;
-                                window.map.addChild(newMarker);
+                                if (window.map) {
+                                    window.map.addChild(newMarker);
+                                }
                             }
                         } else {
-                            if (markersState[group.id][mark.id]) {
+                            if (markersState[group.id][mark.id] && window.map) {
                                 window.map.removeChild(markersState[group.id][mark.id]);
                                 markersState[group.id][mark.id] = null;
                             }
@@ -253,22 +286,6 @@ async function main() {
 
                 this._container!.appendChild(divElement);
             });
-
-            // 👇 После отрисовки меню добавляем все маркеры на карту
-            this._currentGroups.forEach((group) => {
-                group.marks.forEach((mark) => {
-                    const newMarker = new YMapDefaultMarker({
-                        coordinates: mark.coordinates,
-                        iconName: 'fallback',
-                        size: 'small',
-                        title: mark.title,
-                        color: { day: group.color, night: group.color } as any,
-                        draggable: false
-                    } as any);
-                    markersState[group.id][mark.id] = newMarker;
-                    window.map.addChild(newMarker);
-                });
-            });
         }
 
         protected _onDetach(): void {
@@ -279,14 +296,20 @@ async function main() {
         }
     }
 
+    // 1. Создаем экземпляр меню
+    const customMenu = new CustomMenuControl({});
+
     const controls = new YMapControls({
         position: 'top right',
         orientation: 'vertical'
     });
     const control = new YMapControl({});
-    control.addChild(new CustomMenuControl({}));
+
+    // 2. Добавляем меню в контрол
+    control.addChild(customMenu);
     controls.addChild(control);
 
+    // 3. Создаем карту
     window.map = new YMap(
         document.getElementById('app')!,
         { location: LOCATION, showScaleInCopyrights: true, behaviors: ['drag', 'pinchZoom', 'scrollZoom'] },
@@ -314,4 +337,7 @@ async function main() {
             controls
         ]
     );
+
+    // 4. Инициализируем маркеры, так как карта уже готова
+    customMenu.initMarkersOnMap();
 }
