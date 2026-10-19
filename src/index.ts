@@ -76,8 +76,10 @@ async function main() {
             this._currentGroups.forEach((group) => {
                 if (!markersState[group.id]) markersState[group.id] = {};
 
-                group.marks.forEach((mark) => {
-                    const newMarker = createMarker(mark.coordinates, mark.title, group.color, true);
+                group.marks.forEach((mark: any) => {
+                    // 👇 Используем флаг активности из данных
+                    const isActive = mark.isActive !== false;
+                    const newMarker = createMarker(mark.coordinates, mark.title, group.color, isActive);
                     markersState[group.id][mark.id] = newMarker;
                     if (window.map) window.map.addChild(newMarker);
                 });
@@ -194,7 +196,7 @@ async function main() {
                     markInputElement.classList.add('menu__checkbox_input', 'child-mark');
                     markInputElement.style.backgroundColor = group.color;
                     markInputElement.type = 'checkbox';
-                    markInputElement.checked = true;
+                    markInputElement.checked = mark.isActive !== false;
 
                     // 👇 Обработчик для ОТДЕЛЬНОГО адреса
                     markInputElement.addEventListener('change', (event) => {
@@ -231,6 +233,10 @@ async function main() {
                     divElement.appendChild(markDivElement);
                 });
 
+                const allCheckboxes = divElement.querySelectorAll<HTMLInputElement>('.child-mark');
+                const anyChecked = Array.from(allCheckboxes).some(cb => cb.checked);
+                inputElement.checked = anyChecked;
+                
                 this._container!.appendChild(divElement);
             });
         }

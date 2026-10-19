@@ -4,6 +4,7 @@ export interface MarkPropTypes {
     coordinates: [number, number];
     title: string;
     id: string;
+    isActive?: boolean;
 }
 
 export interface GroupPropTypes {

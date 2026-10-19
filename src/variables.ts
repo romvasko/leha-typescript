@@ -24,19 +24,18 @@ function stripCity(address: string): string {
     return address.slice(commaIndex + 1).trim();
 }
 
-// Передаём выбранный день в функцию
 export function buildGroupsForDay(day: string | 'all'): GroupPropTypes[] {
-    // Если выбрано "Все дни" — берём все адреса. Иначе — только нужные ID.
+    // Получаем список ID, активных в выбранный день
     const activeIds = day === 'all'
         ? new Set(addresses.map(a => a.id))
         : new Set(scheduleData.filter(s => s.day === day).map(s => s.id));
 
-    // Фильтруем адреса
-    const filteredAddresses = addresses.filter(addr => activeIds.has(addr.id));
+    // НЕ фильтруем адреса, а берем все
+    const allAddresses = [...addresses].sort((a, b) => Number(a.id) - Number(b.id));
 
     const map = new Map<string, GroupPropTypes>();
 
-    filteredAddresses.forEach((point) => {
+    allAddresses.forEach((point) => {
         const { name, color } = detectCity(point.address);
 
         if (!map.has(name)) {
@@ -48,16 +47,15 @@ export function buildGroupsForDay(day: string | 'all'): GroupPropTypes[] {
             });
         }
 
+        // Определяем, активен ли адрес в этот день
+        const isActive = activeIds.has(point.id);
+
         map.get(name)!.marks.push({
             coordinates: [point.lng, point.lat],
             title: `${point.id}`,
-            id: point.id
-        });
-    });
-
-    // Сортируем точки внутри групп
-    map.forEach(group => {
-        group.marks.sort((a, b) => Number(a.id) - Number(b.id));
+            id: point.id,
+            isActive // 👈 Передаем флаг активности
+        }); // as any, если не обновили интерфейс MarkPropTypes
     });
 
     return Array.from(map.values());
