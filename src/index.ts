@@ -25,14 +25,33 @@ async function main() {
         YMapGroupEntity
     } = ymaps3;
 
-    // Регистрируем CDN для пакета с UI-компонентами
     ymaps3.import.registerCdn('https://cdn.jsdelivr.net/npm/{package}', '@yandex/ymaps3-default-ui-theme@latest');
 
     // @ts-expect-error — типы ymaps3.import не знают про default-ui-theme
     const { YMapDefaultMarker } = await ymaps3.import('@yandex/ymaps3-default-ui-theme');
 
-    // Глобальное состояние для всех маркеров
     const markersState: MarkersState = {};
+
+    // 👇 Функция для создания маркера (активного или неактивного)
+    function createMarker(
+        coordinates: [number, number],
+        title: string,
+        color: string,
+        isActive: boolean
+    ) {
+        return new YMapDefaultMarker({
+            coordinates,
+            iconName: 'fallback',
+            size: 'small',
+            title,
+            // Если неактивен — серый и полупрозрачный
+            color: isActive
+                ? { day: color, night: color }
+                : { day: '#999999', night: '#999999' },
+            opacity: isActive ? 1 : 0.5, // Полупрозрачность для неактивных
+            draggable: false
+        } as any);
+    }
 
     function focusOnPoint(lng: number, lat: number) {
         window.map.setLocation({
@@ -52,63 +71,43 @@ async function main() {
             this._createMenu();
         }
 
-        // 👇 Публичный метод для инициализации маркеров, когда карта готова
+        // 👇 Обновленный метод инициализации (все маркеры активны по умолчанию)
         public initMarkersOnMap() {
             this._currentGroups.forEach((group) => {
+                if (!markersState[group.id]) markersState[group.id] = {};
+
                 group.marks.forEach((mark) => {
-                    // Проверяем, нет ли уже маркера
-                    if (!markersState[group.id]?.[mark.id]) {
-                        const newMarker = new YMapDefaultMarker({
-                            coordinates: mark.coordinates,
-                            iconName: 'fallback',
-                            size: 'small',
-                            title: mark.title,
-                            color: { day: group.color, night: group.color } as any,
-                            draggable: false
-                        } as any);
-
-                        if (!markersState[group.id]) markersState[group.id] = {};
-                        markersState[group.id][mark.id] = newMarker;
-
-                        if (window.map) {
-                            window.map.addChild(newMarker);
-                        }
-                    }
+                    const newMarker = createMarker(mark.coordinates, mark.title, group.color, true);
+                    markersState[group.id][mark.id] = newMarker;
+                    if (window.map) window.map.addChild(newMarker);
                 });
             });
         }
 
         _createMenu() {
-            // 👇 ОБЁРТКА — держит и кнопку, и меню
             this._element = document.createElement('div');
             this._element.classList.add('menu-wrapper');
 
-            // Кнопка-переключатель — СНАРУЖИ сворачиваемого блока
             const toggleButton = document.createElement('button');
             toggleButton.classList.add('menu-toggle');
             toggleButton.type = 'button';
             toggleButton.textContent = '☰';
-            toggleButton.title = 'Скрыть / показать меню';
             this._element.appendChild(toggleButton);
 
-            // Сворачиваемый блок меню
             const menuBody = document.createElement('div');
             menuBody.classList.add('menu');
             this._element.appendChild(menuBody);
 
-            // Обработчик клика — сворачивает menuBody, кнопка остаётся на месте
             toggleButton.addEventListener('click', () => {
                 const isHidden = menuBody.classList.toggle('menu--hidden');
                 toggleButton.textContent = isHidden ? '☰' : '×';
             });
 
-            // Заголовок — внутрь menuBody
             const titleElement = document.createElement('div');
             titleElement.textContent = 'График работы';
             titleElement.classList.add('menu__title');
             menuBody.appendChild(titleElement);
 
-            // 👇 Выпадающий список дней недели
             const daySelector = document.createElement('select');
             daySelector.classList.add('menu-day-selector');
             daySelector.innerHTML = `
@@ -117,54 +116,36 @@ async function main() {
             `;
             menuBody.appendChild(daySelector);
 
-            // Контейнер для групп
             this._container = document.createElement('div');
             this._container.classList.add('container');
             menuBody.appendChild(this._container);
 
-            // 👇 Обработчик смены дня
             daySelector.addEventListener('change', (e) => {
                 const selectedDay = (e.target as HTMLSelectElement).value;
-
-                // 1. Удаляем старые маркеры с карты
                 this._clearAllMarkers();
-
-                // 2. Очищаем контейнер меню
                 this._container!.innerHTML = '';
-
-                // 3. Получаем новые данные и рисуем
                 this._currentGroups = buildGroupsForDay(selectedDay);
                 this._renderGroups(this._currentGroups);
-
-                // 👇 4. Добавляем новые маркеры на карту, если она уже есть
-                if (window.map) {
-                    this.initMarkersOnMap();
-                }
+                if (window.map) this.initMarkersOnMap();
             });
 
-            // 👇 Первичная отрисовка (по умолчанию Понедельник)
             this._currentGroups = buildGroupsForDay('monday');
             this._renderGroups(this._currentGroups);
 
-            // Регистрируем DOM-контекст на обёртке
             this._detachDom = ymaps3.useDomContext(this, this._element, this._element);
         }
 
-        // 👇 Метод для полной очистки маркеров с карты
         _clearAllMarkers() {
             Object.values(markersState).forEach(group => {
                 Object.values(group).forEach(marker => {
                     if (marker && window.map) window.map.removeChild(marker);
                 });
             });
-            // Очищаем объект состояния
             for (const key in markersState) delete markersState[key];
         }
 
-        // 👇 Метод отрисовки меню
         public _renderGroups(groups: GroupPropTypes[]) {
             groups.forEach((group) => {
-                // Инициализируем состояние для группы
                 if (!markersState[group.id]) markersState[group.id] = {};
 
                 const divElement = document.createElement('div');
@@ -178,40 +159,22 @@ async function main() {
                 inputElement.id = group.id;
                 inputElement.checked = true;
 
+                // 👇 Обработчик для ГРУППЫ (города)
                 inputElement.addEventListener('change', (event) => {
                     const checked = (event.target as HTMLInputElement).checked;
 
                     const childCheckboxes = divElement.querySelectorAll<HTMLInputElement>('.child-mark');
                     childCheckboxes.forEach((cb) => (cb.checked = checked));
 
-                    if (checked) {
-                        Object.entries(markersState[group.id]).forEach(([id]) => {
-                            const markerInfo = group.marks.find((item) => item.id === id);
-                            if (!markerInfo) return;
+                    group.marks.forEach(mark => {
+                        const oldMarker = markersState[group.id][mark.id];
+                        if (oldMarker && window.map) window.map.removeChild(oldMarker);
 
-                            // Если маркер уже есть (не был удален), пропускаем, иначе создаем
-                            if (!markersState[group.id][id]) {
-                                const newMarker = new YMapDefaultMarker({
-                                    coordinates: markerInfo.coordinates,
-                                    iconName: 'fallback',
-                                    size: 'small',
-                                    title: markerInfo.title,
-                                    color: { day: group.color, night: group.color } as any,
-                                    draggable: false
-                                } as any);
-                                markersState[group.id][id] = newMarker;
-                                if (window.map) window.map.addChild(newMarker);
-                            }
-                        });
-                    } else {
-                        Object.values(markersState[group.id]).forEach((marker) => {
-                            if (marker && window.map) window.map.removeChild(marker);
-                        });
-                        // Не удаляем ключи, а просто ставим null, чтобы можно было вернуть
-                        Object.keys(markersState[group.id]).forEach(key => {
-                            markersState[group.id][key] = null;
-                        });
-                    }
+                        // Создаем новый маркер (активный или серый)
+                        const newMarker = createMarker(mark.coordinates, mark.title, group.color, checked);
+                        markersState[group.id][mark.id] = newMarker;
+                        if (window.map) window.map.addChild(newMarker);
+                    });
                 });
 
                 const labelElement = document.createElement('label');
@@ -233,45 +196,29 @@ async function main() {
                     markInputElement.type = 'checkbox';
                     markInputElement.checked = true;
 
+                    // 👇 Обработчик для ОТДЕЛЬНОГО адреса
                     markInputElement.addEventListener('change', (event) => {
                         const checked = (event.target as HTMLInputElement).checked;
 
-                        if (checked) {
-                            const parent = divElement.querySelector<HTMLInputElement>(`.parent-${group.id}`);
-                            if (parent) parent.checked = true;
+                        // Меняем маркер на карте
+                        const oldMarker = markersState[group.id][mark.id];
+                        if (oldMarker && window.map) window.map.removeChild(oldMarker);
 
-                            if (!markersState[group.id][mark.id]) {
-                                const newMarker = new YMapDefaultMarker({
-                                    coordinates: mark.coordinates,
-                                    iconName: 'fallback',
-                                    size: 'small',
-                                    title: mark.title,
-                                    color: { day: group.color, night: group.color } as any,
-                                    draggable: false
-                                } as any);
-                                markersState[group.id][mark.id] = newMarker;
-                                if (window.map) {
-                                    window.map.addChild(newMarker);
-                                }
-                            }
-                        } else {
-                            if (markersState[group.id][mark.id] && window.map) {
-                                window.map.removeChild(markersState[group.id][mark.id]);
-                                markersState[group.id][mark.id] = null;
-                            }
-                        }
+                        const newMarker = createMarker(mark.coordinates, mark.title, group.color, checked);
+                        markersState[group.id][mark.id] = newMarker;
+                        if (window.map) window.map.addChild(newMarker);
 
-                        const markers = Object.values(markersState[group.id]);
-                        const anyChecked = markers.some((marker) => marker !== null);
+                        // Проверяем, все ли выключены, чтобы обновить чекбокс группы
+                        const allCheckboxes = divElement.querySelectorAll<HTMLInputElement>('.child-mark');
+                        const allUnchecked = Array.from(allCheckboxes).every(cb => !cb.checked);
                         const parent = divElement.querySelector<HTMLInputElement>(`.parent-${group.id}`);
-                        if (parent) parent.checked = anyChecked;
+                        if (parent) parent.checked = !allUnchecked;
                     });
 
                     const markLabelElement = document.createElement('label');
                     markLabelElement.classList.add('menu__checkbox_title');
                     markLabelElement.textContent = mark.title;
 
-                    // 👇 Клик по названию центрирует карту
                     markLabelElement.style.cursor = 'pointer';
                     markLabelElement.addEventListener('click', (e) => {
                         e.preventDefault();
@@ -296,7 +243,6 @@ async function main() {
         }
     }
 
-    // 1. Создаем экземпляр меню
     const customMenu = new CustomMenuControl({});
 
     const controls = new YMapControls({
@@ -304,33 +250,18 @@ async function main() {
         orientation: 'vertical'
     });
     const control = new YMapControl({});
-
-    // 2. Добавляем меню в контрол
     control.addChild(customMenu);
     controls.addChild(control);
 
-    // 3. Создаем карту
     window.map = new YMap(
         document.getElementById('app')!,
         { location: LOCATION, showScaleInCopyrights: true, behaviors: ['drag', 'pinchZoom', 'scrollZoom'] },
         [
             new YMapDefaultSchemeLayer({
                 customization: [
-                    {
-                        tags: { any: ['poi'] },
-                        elements: 'label.icon',
-                        stylers: [{ opacity: 0 }]
-                    },
-                    {
-                        tags: { any: ['poi'] },
-                        elements: 'label.text.fill',
-                        stylers: [{ opacity: 0 }]
-                    },
-                    {
-                        tags: { any: ['street'] },
-                        elements: 'label',
-                        stylers: [{ opacity: 0 }]
-                    }
+                    { tags: { any: ['poi'] }, elements: 'label.icon', stylers: [{ opacity: 0 }] },
+                    { tags: { any: ['poi'] }, elements: 'label.text.fill', stylers: [{ opacity: 0 }] },
+                    { tags: { any: ['street'] }, elements: 'label', stylers: [{ opacity: 0 }] }
                 ]
             }),
             new YMapDefaultFeaturesLayer({}),
@@ -338,6 +269,5 @@ async function main() {
         ]
     );
 
-    // 4. Инициализируем маркеры, так как карта уже готова
     customMenu.initMarkersOnMap();
 }
