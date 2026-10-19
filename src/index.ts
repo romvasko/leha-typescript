@@ -1,5 +1,5 @@
 import { GroupPropTypes } from './common.js';
-import { LOCATION, groupsProps } from './variables.js';
+import { LOCATION, buildGroupsForDay } from './variables.js';
 
 declare global {
     interface Window {
@@ -31,14 +31,10 @@ async function main() {
     // @ts-expect-error — типы ymaps3.import не знают про default-ui-theme
     const { YMapDefaultMarker } = await ymaps3.import('@yandex/ymaps3-default-ui-theme');
 
-    interface CustomMenuControlProps {
-        groupsProps: Array<GroupPropTypes>;
-    }
-
+    // Глобальное состояние для всех маркеров
     const markersState: MarkersState = {};
 
     function focusOnPoint(lng: number, lat: number) {
-        // Устанавливаем центр и зум ОДНИМ вызовом setLocation
         window.map.setLocation({
             center: [lng, lat],
             zoom: 14,
@@ -46,10 +42,11 @@ async function main() {
         });
     }
 
-    class CustomMenuControl extends YMapGroupEntity<CustomMenuControlProps> {
+    class CustomMenuControl extends YMapGroupEntity<{}> {
         private _element?: HTMLDivElement;
         private _container?: HTMLDivElement;
         private _detachDom?: () => void;
+        private _currentGroups: GroupPropTypes[] = [];
 
         protected _onAttach() {
             this._createMenu();
@@ -81,16 +78,64 @@ async function main() {
 
             // Заголовок — внутрь menuBody
             const titleElement = document.createElement('div');
-            titleElement.textContent = 'What to do in the city';
+            titleElement.textContent = 'График работы';
             titleElement.classList.add('menu__title');
             menuBody.appendChild(titleElement);
 
-            // Контейнер для групп — тоже внутрь menuBody
+            // 👇 Выпадающий список дней недели
+            const daySelector = document.createElement('select');
+            daySelector.classList.add('menu-day-selector');
+            daySelector.innerHTML = `
+                <option value="monday">Понедельник</option>
+                <option value="all">Все дни</option>
+            `;
+            menuBody.appendChild(daySelector);
+
+            // Контейнер для групп
             this._container = document.createElement('div');
             this._container.classList.add('container');
             menuBody.appendChild(this._container);
 
-            this._props.groupsProps.forEach((group) => {
+            // 👇 Обработчик смены дня
+            daySelector.addEventListener('change', (e) => {
+                const selectedDay = (e.target as HTMLSelectElement).value;
+
+                // 1. Удаляем старые маркеры с карты
+                this._clearAllMarkers();
+
+                // 2. Очищаем контейнер меню
+                this._container!.innerHTML = '';
+
+                // 3. Получаем новые данные и рисуем
+                this._currentGroups = buildGroupsForDay(selectedDay);
+                this._renderGroups(this._currentGroups);
+            });
+
+            // 👇 Первичная отрисовка (по умолчанию Понедельник)
+            this._currentGroups = buildGroupsForDay('monday');
+            this._renderGroups(this._currentGroups);
+
+            // Регистрируем DOM-контекст на обёртке
+            this._detachDom = ymaps3.useDomContext(this, this._element, this._element);
+        }
+
+        // 👇 Метод для полной очистки маркеров с карты
+        _clearAllMarkers() {
+            Object.values(markersState).forEach(group => {
+                Object.values(group).forEach(marker => {
+                    if (marker) window.map.removeChild(marker);
+                });
+            });
+            // Очищаем объект состояния
+            for (const key in markersState) delete markersState[key];
+        }
+
+        // 👇 Метод отрисовки меню и добавления маркеров
+        _renderGroups(groups: GroupPropTypes[]) {
+            groups.forEach((group) => {
+                // Инициализируем состояние для группы
+                if (!markersState[group.id]) markersState[group.id] = {};
+
                 const divElement = document.createElement('div');
                 const innerDivElement = document.createElement('div');
                 innerDivElement.classList.add('menu__checkbox');
@@ -112,20 +157,28 @@ async function main() {
                         Object.entries(markersState[group.id]).forEach(([id]) => {
                             const markerInfo = group.marks.find((item) => item.id === id);
                             if (!markerInfo) return;
-                            const newMarker = new YMapDefaultMarker({
-                                coordinates: markerInfo.coordinates,
-                                iconName: 'fallback',
-                                size: 'small',
-                                title: markerInfo.title,
-                                color: { day: group.color, night: group.color } as any,
-                                draggable: false
-                            } as any);
-                            markersState[group.id][id] = newMarker;
-                            window.map.addChild(newMarker);
+
+                            // Если маркер уже есть (не был удален), пропускаем, иначе создаем
+                            if (!markersState[group.id][id]) {
+                                const newMarker = new YMapDefaultMarker({
+                                    coordinates: markerInfo.coordinates,
+                                    iconName: 'fallback',
+                                    size: 'small',
+                                    title: markerInfo.title,
+                                    color: { day: group.color, night: group.color } as any,
+                                    draggable: false
+                                } as any);
+                                markersState[group.id][id] = newMarker;
+                                window.map.addChild(newMarker);
+                            }
                         });
                     } else {
                         Object.values(markersState[group.id]).forEach((marker) => {
                             if (marker) window.map.removeChild(marker);
+                        });
+                        // Не удаляем ключи, а просто ставим null, чтобы можно было вернуть
+                        Object.keys(markersState[group.id]).forEach(key => {
+                            markersState[group.id][key] = null;
                         });
                     }
                 });
@@ -156,19 +209,23 @@ async function main() {
                             const parent = divElement.querySelector<HTMLInputElement>(`.parent-${group.id}`);
                             if (parent) parent.checked = true;
 
-                            const newMarker = new YMapDefaultMarker({
-                                coordinates: mark.coordinates,
-                                iconName: 'fallback',
-                                size: 'small',
-                                title: mark.title,
-                                color: { day: group.color, night: group.color } as any,
-                                draggable: false
-                            } as any);
-                            markersState[group.id][mark.id] = newMarker;
-                            window.map.addChild(newMarker);
+                            if (!markersState[group.id][mark.id]) {
+                                const newMarker = new YMapDefaultMarker({
+                                    coordinates: mark.coordinates,
+                                    iconName: 'fallback',
+                                    size: 'small',
+                                    title: mark.title,
+                                    color: { day: group.color, night: group.color } as any,
+                                    draggable: false
+                                } as any);
+                                markersState[group.id][mark.id] = newMarker;
+                                window.map.addChild(newMarker);
+                            }
                         } else {
-                            window.map.removeChild(markersState[group.id][mark.id]);
-                            markersState[group.id][mark.id] = null;
+                            if (markersState[group.id][mark.id]) {
+                                window.map.removeChild(markersState[group.id][mark.id]);
+                                markersState[group.id][mark.id] = null;
+                            }
                         }
 
                         const markers = Object.values(markersState[group.id]);
@@ -197,8 +254,21 @@ async function main() {
                 this._container!.appendChild(divElement);
             });
 
-            // Регистрируем DOM-контекст на обёртке
-            this._detachDom = ymaps3.useDomContext(this, this._element, this._element);
+            // 👇 После отрисовки меню добавляем все маркеры на карту
+            this._currentGroups.forEach((group) => {
+                group.marks.forEach((mark) => {
+                    const newMarker = new YMapDefaultMarker({
+                        coordinates: mark.coordinates,
+                        iconName: 'fallback',
+                        size: 'small',
+                        title: mark.title,
+                        color: { day: group.color, night: group.color } as any,
+                        draggable: false
+                    } as any);
+                    markersState[group.id][mark.id] = newMarker;
+                    window.map.addChild(newMarker);
+                });
+            });
         }
 
         protected _onDetach(): void {
@@ -214,7 +284,7 @@ async function main() {
         orientation: 'vertical'
     });
     const control = new YMapControl({});
-    control.addChild(new CustomMenuControl({ groupsProps }));
+    control.addChild(new CustomMenuControl({}));
     controls.addChild(control);
 
     window.map = new YMap(
@@ -223,19 +293,16 @@ async function main() {
         [
             new YMapDefaultSchemeLayer({
                 customization: [
-                    // Скрываем иконки POI (магазины, банкоматы и т.д.)
                     {
                         tags: { any: ['poi'] },
                         elements: 'label.icon',
                         stylers: [{ opacity: 0 }]
                     },
-                    // Скрываем текст POI
                     {
                         tags: { any: ['poi'] },
                         elements: 'label.text.fill',
                         stylers: [{ opacity: 0 }]
                     },
-                    // Скрываем подписи улиц
                     {
                         tags: { any: ['street'] },
                         elements: 'label',
@@ -247,20 +314,4 @@ async function main() {
             controls
         ]
     );
-
-    groupsProps.forEach((group) => {
-        markersState[group.id] = {};
-        group.marks.forEach((mark) => {
-            const marker = new YMapDefaultMarker({
-                coordinates: mark.coordinates,
-                iconName: 'fallback',
-                size: 'small',
-                title: mark.title,
-                color: { day: group.color, night: group.color } as any,
-                draggable: false
-            } as any);
-            markersState[group.id][mark.id] = marker;
-            window.map.addChild(marker);
-        });
-    });
 }

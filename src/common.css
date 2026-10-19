@@ -129,3 +129,19 @@ background: transparent
 .ymaps3--map {
     touch-action: auto;
 }
+
+.menu-day-selector {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #f9f9f9;
+    font-size: 14px;
+    cursor: pointer;
+    outline: none;
+}
+
+.menu-day-selector:focus {
+    border-color: #E53935; /* Цвет в тон вашей палитры */
+}

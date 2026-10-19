@@ -1,6 +1,8 @@
 import type { LngLatBounds, YMapLocationRequest } from '@yandex/ymaps3-types';
 import type { GroupPropTypes, AddressPoint } from './common';
 import { addresses } from './addresses.js';
+import { scheduleData } from './schedule.js';
+
 
 /** Города и их цвета */
 const CITY_KEYS: Array<{ key: string; name: string; color: string }> = [
@@ -20,6 +22,45 @@ function stripCity(address: string): string {
     const commaIndex = address.indexOf(',');
     if (commaIndex === -1) return address.trim();
     return address.slice(commaIndex + 1).trim();
+}
+
+// Передаём выбранный день в функцию
+export function buildGroupsForDay(day: string | 'all'): GroupPropTypes[] {
+    // Если выбрано "Все дни" — берём все адреса. Иначе — только нужные ID.
+    const activeIds = day === 'all'
+        ? new Set(addresses.map(a => a.id))
+        : new Set(scheduleData.filter(s => s.day === day).map(s => s.id));
+
+    // Фильтруем адреса
+    const filteredAddresses = addresses.filter(addr => activeIds.has(addr.id));
+
+    const map = new Map<string, GroupPropTypes>();
+
+    filteredAddresses.forEach((point) => {
+        const { name, color } = detectCity(point.address);
+
+        if (!map.has(name)) {
+            map.set(name, {
+                groupName: name,
+                color,
+                id: String(map.size + 1),
+                marks: []
+            });
+        }
+
+        map.get(name)!.marks.push({
+            coordinates: [point.lng, point.lat],
+            title: `${point.id}`,
+            id: point.id
+        });
+    });
+
+    // Сортируем точки внутри групп
+    map.forEach(group => {
+        group.marks.sort((a, b) => Number(a.id) - Number(b.id));
+    });
+
+    return Array.from(map.values());
 }
 
 function buildGroups(points: AddressPoint[]): GroupPropTypes[] {
