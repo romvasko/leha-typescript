@@ -1,5 +1,6 @@
 import { GroupPropTypes } from './common.js';
 import { LOCATION, buildGroupsForDay } from './variables.js';
+import { scheduleData, DayOfWeek } from './schedule.js';
 
 declare global {
     interface Window {
@@ -123,7 +124,11 @@ async function main() {
                 <option value="all">Все дни</option>
             `;
             menuBody.appendChild(daySelector);
-            
+            // 👇 Определяем текущий день недели
+            const daysMap: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            const todayIndex = new Date().getDay(); // 0 - воскресенье, 1 - понедельник и т.д.
+            const currentDay = daysMap[todayIndex];
+
             this._container = document.createElement('div');
             this._container.classList.add('container');
             menuBody.appendChild(this._container);
@@ -137,7 +142,12 @@ async function main() {
                 if (window.map) this.initMarkersOnMap();
             });
 
-            this._currentGroups = buildGroupsForDay('monday');
+            // Если для сегодняшнего дня нет данных, показываем все дни
+            const hasDataForToday = scheduleData.some(s => s.day === currentDay);
+            const initialDay = hasDataForToday ? currentDay : 'all';
+
+            daySelector.value = initialDay;
+            this._currentGroups = buildGroupsForDay(initialDay);
             this._renderGroups(this._currentGroups);
 
             this._detachDom = ymaps3.useDomContext(this, this._element, this._element);
