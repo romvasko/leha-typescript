@@ -1,7 +1,7 @@
 import type { LngLatBounds, YMapLocationRequest } from '@yandex/ymaps3-types';
 import type { GroupPropTypes, AddressPoint } from './common';
 import { addresses } from './addresses.js';
-import { scheduleData } from './schedule.js';
+import { scheduleData, DayOfWeek } from './schedule.js';
 
 
 /** Города и их цвета */

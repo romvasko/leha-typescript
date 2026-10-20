@@ -114,10 +114,16 @@ async function main() {
             daySelector.classList.add('menu-day-selector');
             daySelector.innerHTML = `
                 <option value="monday">Понедельник</option>
+                <option value="tuesday">Вторник</option>
+                <option value="wednesday">Среда</option>
+                <option value="thursday">Четверг</option>
+                <option value="friday">Пятница</option>
+                <option value="saturday">Суббота</option>
+                <option value="sunday">Воскресенье</option>
                 <option value="all">Все дни</option>
             `;
             menuBody.appendChild(daySelector);
-
+            
             this._container = document.createElement('div');
             this._container.classList.add('container');
             menuBody.appendChild(this._container);
