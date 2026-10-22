@@ -80,7 +80,29 @@ export const scheduleData: ScheduleItem[] = [
 
 
     // --- ЧЕТВЕРГ ---
-    // { id: '...', day: 'thursday' },
+    { id: '2460', day: 'thursday' },
+    { id: '526', day: 'thursday' },
+    { id: '543', day: 'thursday' },
+    { id: '2552', day: 'thursday' },
+    { id: '378', day: 'thursday' },
+    { id: '310', day: 'thursday' },
+    { id: '461', day: 'thursday' },
+    { id: '2314', day: 'thursday' },
+    { id: '2042', day: 'thursday' },
+    { id: '2529', day: 'thursday' },
+    { id: '5032', day: 'thursday' }, // 👈 Новый
+    { id: '2503', day: 'thursday' },
+    { id: '384', day: 'thursday' },
+    { id: '2339', day: 'thursday' },
+    { id: '2652', day: 'thursday' },
+    { id: '280', day: 'thursday' },
+    { id: '2140', day: 'thursday' },
+    { id: '538', day: 'thursday' },
+    { id: '2427', day: 'thursday' },
+    { id: '2030', day: 'thursday' },
+    { id: '269', day: 'thursday' },
+    { id: '393', day: 'thursday' },
+    { id: '351', day: 'thursday' },
 
     // --- ПЯТНИЦА ---
     // { id: '...', day: 'friday' },
