@@ -6,10 +6,10 @@ import { scheduleData, DayOfWeek } from './schedule.js';
 
 /** Города и их цвета */
 const CITY_KEYS: Array<{ key: string; name: string; color: string }> = [
-    { key: 'Барановичи,',       name: 'Барановичи',       color: '#E53935' },  // красный
-    { key: 'Барановичский р-н', name: 'Барановичский р-н', color: '#8E24AA' },  // фиолетовый
-    { key: 'Ляховичи,',         name: 'Ляховичи',         color: '#FB8C00' },  // оранжевый
-    { key: 'Слоним,',           name: 'Слоним',           color: '#1E88E5' }   // синий
+    { key: 'Барановичи,',       name: 'Барановичи',       color: '#b71c1c' },  // красный
+    { key: 'Барановичский р-н', name: 'Барановичский р-н', color: '#0d47a1' },  // фиолетовый
+    { key: 'Ляховичи,',         name: 'Ляховичи',         color: '#e65100' },  // оранжевый
+    { key: 'Слоним,',           name: 'Слоним',           color: '#4a148c' }   // синий
 ];
 
 function detectCity(address: string): { name: string; color: string } {
