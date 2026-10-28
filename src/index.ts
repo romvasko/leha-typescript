@@ -72,18 +72,32 @@ async function main() {
             this._createMenu();
         }
 
-        // 👇 Обновленный метод инициализации (все маркеры активны по умолчанию)
         public initMarkersOnMap() {
+            // 1. Сначала собираем все маркеры в один плоский список
+            const allMarkers: { group: GroupPropTypes, mark: any }[] = [];
+
             this._currentGroups.forEach((group) => {
+                group.marks.forEach((mark: any) => {
+                    allMarkers.push({ group, mark });
+                });
+            });
+
+            // 2. Сортируем: неактивные (isActive === false) идут первыми, активные — последними
+            allMarkers.sort((a, b) => {
+                const aActive = a.mark.isActive !== false ? 1 : 0;
+                const bActive = b.mark.isActive !== false ? 1 : 0;
+                return aActive - bActive; // 0 (неактивные) будет раньше, 1 (активные) — позже
+            });
+
+            // 3. Добавляем на карту в отсортированном порядке
+            allMarkers.forEach(({ group, mark }) => {
                 if (!markersState[group.id]) markersState[group.id] = {};
 
-                group.marks.forEach((mark: any) => {
-                    // 👇 Используем флаг активности из данных
-                    const isActive = mark.isActive !== false;
-                    const newMarker = createMarker(mark.coordinates, mark.title, group.color, isActive);
-                    markersState[group.id][mark.id] = newMarker;
-                    if (window.map) window.map.addChild(newMarker);
-                });
+                const isActive = mark.isActive !== false;
+                const newMarker = createMarker(mark.coordinates, mark.title, group.color, isActive);
+                markersState[group.id][mark.id] = newMarker;
+
+                if (window.map) window.map.addChild(newMarker);
             });
         }
 
@@ -235,28 +249,27 @@ async function main() {
                 inputElement.id = group.id;
                 inputElement.checked = true;
 
-                // 👇 Обработчик для ГРУППЫ (города)
-                // 👇 Обработчик для ГРУППЫ (города)
                 inputElement.addEventListener('change', (event) => {
                     const checked = (event.target as HTMLInputElement).checked;
+                    // ... снятие галочек с детей ...
 
-                    // Визуально ставим/снимаем галочки у всех дочерних элементов
-                    const childCheckboxes = divElement.querySelectorAll<HTMLInputElement>('.child-mark');
-                    childCheckboxes.forEach((cb) => (cb.checked = checked));
+                    // Сортируем маркеры группы так же, как в initMarkersOnMap
+                    const sortedMarks = [...group.marks].sort((a: any, b: any) => {
+                        const aActive = (checked && a.isActive !== false) ? 1 : 0;
+                        const bActive = (checked && b.isActive !== false) ? 1 : 0;
+                        return aActive - bActive;
+                    });
 
-                    group.marks.forEach((mark: any) => {
-                        // 👇 ГЛАВНЫЙ ФИКС:
-                        // Если мы ВКЛЮЧАЕМ группу, то активируем только те адреса,
-                        // которые изначально входят в выбранный день (isActive !== false).
-                        // Если ВЫКЛЮЧАЕМ — выключаем все.
+                    sortedMarks.forEach((mark: any) => {
                         const shouldBeActive = checked ? (mark.isActive !== false) : false;
 
                         const oldMarker = markersState[group.id][mark.id];
                         if (oldMarker && window.map) window.map.removeChild(oldMarker);
 
-                        // Создаем новый маркер с учетом флага
                         const newMarker = createMarker(mark.coordinates, mark.title, group.color, shouldBeActive);
                         markersState[group.id][mark.id] = newMarker;
+
+                        // Добавляем в конец (поверх старых)
                         if (window.map) window.map.addChild(newMarker);
                     });
                 });
@@ -287,15 +300,29 @@ async function main() {
                     markInputElement.addEventListener('change', (event) => {
                         const checked = (event.target as HTMLInputElement).checked;
 
-                        // Меняем маркер на карте
+                        // 1. Удаляем старый маркер с карты
                         const oldMarker = markersState[group.id][mark.id];
-                        if (oldMarker && window.map) window.map.removeChild(oldMarker);
+                        if (oldMarker && window.map) {
+                            window.map.removeChild(oldMarker);
+                        }
 
+                        // 2. Создаем новый маркер (цветной, если checked = true)
                         const newMarker = createMarker(mark.coordinates, mark.title, group.color, checked);
                         markersState[group.id][mark.id] = newMarker;
-                        if (window.map) window.map.addChild(newMarker);
 
-                        // Проверяем, все ли выключены, чтобы обновить чекбокс группы
+                        // 3. Добавляем на карту
+                        if (window.map) {
+                            window.map.addChild(newMarker);
+
+                            // 👇 ХАК ДЛЯ ПРИОРИТЕТА ОТРИСОВКИ:
+                            // Если маркер стал активным, мы можем принудительно перерисовать
+                            // все остальные активные маркеры поверх, но проще всего
+                            // при клике на чекбокс просто вызвать метод перерисовки всех маркеров.
+                            // Но чтобы не было мерцания, мы просто оставляем addChild —
+                            // в API 3.0 последний добавленный элемент оказывается сверху.
+                        }
+
+                        // 4. Проверяем, все ли выключены, чтобы обновить чекбокс группы
                         const allCheckboxes = divElement.querySelectorAll<HTMLInputElement>('.child-mark');
                         const allUnchecked = Array.from(allCheckboxes).every(cb => !cb.checked);
                         const parent = divElement.querySelector<HTMLInputElement>(`.parent-${group.id}`);
