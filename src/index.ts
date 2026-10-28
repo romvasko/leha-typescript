@@ -71,6 +71,38 @@ async function main() {
         protected _onAttach() {
             this._createMenu();
         }
+        // 👇 Новый метод для принудительной перерисовки в правильном порядке
+        public refreshAllMarkers() {
+            // 1. Удаляем все текущие маркеры с карты
+            this._clearAllMarkers();
+
+            // 2. Собираем все маркеры текущего дня в один массив
+            const allMarkers: { group: GroupPropTypes, mark: any, isActive: boolean }[] = [];
+
+            this._currentGroups.forEach((group) => {
+                group.marks.forEach((mark: any) => {
+                    // Проверяем, отмечен ли чекбокс для этого маркера в DOM
+                    const checkbox = this._container!.querySelector<HTMLInputElement>(`.child-mark[data-mark-id="${mark.id}"]`);
+                    const isActive = checkbox ? checkbox.checked : (mark.isActive !== false);
+
+                    allMarkers.push({ group, mark, isActive });
+                });
+            });
+
+            // 3. Сортируем: сначала неактивные (false), потом активные (true)
+            allMarkers.sort((a, b) => {
+                return (a.isActive ? 1 : 0) - (b.isActive ? 1 : 0);
+            });
+
+            // 4. Добавляем на карту
+            allMarkers.forEach(({ group, mark, isActive }) => {
+                if (!markersState[group.id]) markersState[group.id] = {};
+
+                const newMarker = createMarker(mark.coordinates, mark.title, group.color, isActive);
+                markersState[group.id][mark.id] = newMarker;
+                if (window.map) window.map.addChild(newMarker);
+            });
+        }
 
         public initMarkersOnMap() {
             // 1. Сначала собираем все маркеры в один плоский список
@@ -146,55 +178,31 @@ async function main() {
             hideUncheckedBtn.textContent = 'Скрыть неотмеченные';
             menuBody.appendChild(hideUncheckedBtn);
 
-            // 👇 Обработчик-переключатель
             hideUncheckedBtn.addEventListener('click', () => {
-                // Проверяем текущее состояние (по тексту кнопки)
                 const isHiddenMode = hideUncheckedBtn.textContent === 'Скрыть неотмеченные';
 
                 if (isHiddenMode) {
-                    // РЕЖИМ СКРЫТИЯ
+                    // Режим скрытия (оставляем как было)
                     const uncheckedBoxes = this._container!.querySelectorAll<HTMLInputElement>('.child-mark:not(:checked)');
-
                     uncheckedBoxes.forEach((checkbox) => {
                         const groupId = checkbox.dataset.groupId;
                         const markId = checkbox.dataset.markId;
-
                         if (groupId && markId) {
                             const marker = markersState[groupId]?.[markId];
                             if (marker && window.map) {
                                 window.map.removeChild(marker);
-                                markersState[groupId][markId] = null; // Временно удаляем с карты
+                                markersState[groupId][markId] = null;
                             }
                         }
                     });
-
-                    // Меняем текст кнопки
                     hideUncheckedBtn.textContent = 'Показать все';
                 } else {
-                    // РЕЖИМ ВОЗВРАТА
-                    // Проходимся по всем группам и маркерам в текущем дне
-                    this._currentGroups.forEach((group) => {
-                        group.marks.forEach((mark: any) => {
-                            const checkbox = this._container!.querySelector<HTMLInputElement>(`.child-mark[data-mark-id="${mark.id}"]`);
-
-                            // Если чекбокс существует и он НЕ отмечен,
-                            // значит этот маркер мы ранее скрыли (или он неактивен)
-                            if (checkbox && !checkbox.checked) {
-                                // Восстанавливаем маркер только если его нет на карте
-                                if (!markersState[group.id]?.[mark.id]) {
-                                    // Создаем СЕРЫЙ (неактивный) маркер, так как галочка снята
-                                    const newMarker = createMarker(mark.coordinates, mark.title, group.color, false);
-                                    markersState[group.id][mark.id] = newMarker;
-                                    if (window.map) window.map.addChild(newMarker);
-                                }
-                            }
-                        });
-                    });
-
-                    // Меняем текст кнопки
+                    // 👇 Режим возврата: просто вызываем полную перерисовку
+                    this.refreshAllMarkers();
                     hideUncheckedBtn.textContent = 'Скрыть неотмеченные';
                 }
             });
+
             // 👇 Определяем текущий день недели
             const daysMap: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
             const todayIndex = new Date().getDay(); // 0 - воскресенье, 1 - понедельник и т.д.
@@ -291,8 +299,11 @@ async function main() {
                     markInputElement.classList.add('menu__checkbox_input', 'child-mark');
                     markInputElement.style.backgroundColor = group.color;
                     markInputElement.type = 'checkbox';
+
+                    // Устанавливаем начальное состояние на основе данных (входит ли в день)
                     markInputElement.checked = mark.isActive !== false;
 
+                    // Сохраняем ID в data-атрибуты для кнопки "Скрыть/Показать"
                     markInputElement.dataset.groupId = group.id;
                     markInputElement.dataset.markId = mark.id;
 
@@ -300,33 +311,17 @@ async function main() {
                     markInputElement.addEventListener('change', (event) => {
                         const checked = (event.target as HTMLInputElement).checked;
 
-                        // 1. Удаляем старый маркер с карты
-                        const oldMarker = markersState[group.id][mark.id];
-                        if (oldMarker && window.map) {
-                            window.map.removeChild(oldMarker);
-                        }
-
-                        // 2. Создаем новый маркер (цветной, если checked = true)
-                        const newMarker = createMarker(mark.coordinates, mark.title, group.color, checked);
-                        markersState[group.id][mark.id] = newMarker;
-
-                        // 3. Добавляем на карту
-                        if (window.map) {
-                            window.map.addChild(newMarker);
-
-                            // 👇 ХАК ДЛЯ ПРИОРИТЕТА ОТРИСОВКИ:
-                            // Если маркер стал активным, мы можем принудительно перерисовать
-                            // все остальные активные маркеры поверх, но проще всего
-                            // при клике на чекбокс просто вызвать метод перерисовки всех маркеров.
-                            // Но чтобы не было мерцания, мы просто оставляем addChild —
-                            // в API 3.0 последний добавленный элемент оказывается сверху.
-                        }
-
-                        // 4. Проверяем, все ли выключены, чтобы обновить чекбокс группы
+                        // 1. Проверяем, все ли чекбоксы в группе сняты/включены,
+                        // чтобы обновить чекбокс самого города
                         const allCheckboxes = divElement.querySelectorAll<HTMLInputElement>('.child-mark');
                         const allUnchecked = Array.from(allCheckboxes).every(cb => !cb.checked);
                         const parent = divElement.querySelector<HTMLInputElement>(`.parent-${group.id}`);
                         if (parent) parent.checked = !allUnchecked;
+
+                        // 2. Перерисовываем ВСЕ маркеры на карте.
+                        // Это гарантирует, что только что включенный (активный) маркер
+                        // окажется поверх всех серых (неактивных).
+                        this.refreshAllMarkers();
                     });
 
                     const markLabelElement = document.createElement('label');
