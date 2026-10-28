@@ -145,3 +145,21 @@ background: transparent
 .menu-day-selector:focus {
     border-color: #E53935; /* Цвет в тон вашей палитры */
 }
+
+.menu-action-btn {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 12px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
+    transition: background-color 0.15s;
+}
+
+.menu-action-btn:hover {
+    background-color: #e0e0e0;
+}
