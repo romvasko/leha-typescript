@@ -368,7 +368,7 @@ async function main() {
 
     window.map = new YMap(
         document.getElementById('app')!,
-        { location: LOCATION, showScaleInCopyrights: true, behaviors: ['drag', 'pinchZoom', 'scrollZoom'] },
+        { location: LOCATION, showScaleInCopyrights: true, behaviors: ['drag', 'pinchZoom', 'scrollZoom'],  zoomRounding: 'auto' },
         [
             new YMapDefaultSchemeLayer({
                 customization: [
