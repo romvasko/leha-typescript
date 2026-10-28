@@ -126,30 +126,60 @@ async function main() {
             menuBody.appendChild(daySelector);
             // ... после daySelector ...
 
-            // 👇 Добавляем кнопку "Скрыть отмеченные"
+            // 👇 Добавляем кнопку "Скрыть/Показать неотмеченные"
             const hideUncheckedBtn = document.createElement('button');
-            hideUncheckedBtn.classList.add('menu-action-btn'); // Новый класс для стилизации
+            hideUncheckedBtn.classList.add('menu-action-btn');
             hideUncheckedBtn.textContent = 'Скрыть неотмеченные';
             menuBody.appendChild(hideUncheckedBtn);
 
-            // 👇 Обработчик кнопки (ЗАМЕНИТЕ ЕГО НА ЭТОТ)
+            // 👇 Обработчик-переключатель
             hideUncheckedBtn.addEventListener('click', () => {
-                // Находим все чекбоксы магазинов, которые НЕ отмечены
-                const uncheckedBoxes = this._container!.querySelectorAll<HTMLInputElement>('.child-mark:not(:checked)');
+                // Проверяем текущее состояние (по тексту кнопки)
+                const isHiddenMode = hideUncheckedBtn.textContent === 'Скрыть неотмеченные';
 
-                uncheckedBoxes.forEach((checkbox) => {
-                    const groupId = checkbox.dataset.groupId;
-                    const markId = checkbox.dataset.markId;
+                if (isHiddenMode) {
+                    // РЕЖИМ СКРЫТИЯ
+                    const uncheckedBoxes = this._container!.querySelectorAll<HTMLInputElement>('.child-mark:not(:checked)');
 
-                    if (groupId && markId) {
-                        const marker = markersState[groupId]?.[markId];
-                        // Если маркер есть на карте, удаляем его
-                        if (marker && window.map) {
-                            window.map.removeChild(marker);
-                            markersState[groupId][markId] = null; // Обнуляем состояние
+                    uncheckedBoxes.forEach((checkbox) => {
+                        const groupId = checkbox.dataset.groupId;
+                        const markId = checkbox.dataset.markId;
+
+                        if (groupId && markId) {
+                            const marker = markersState[groupId]?.[markId];
+                            if (marker && window.map) {
+                                window.map.removeChild(marker);
+                                markersState[groupId][markId] = null; // Временно удаляем с карты
+                            }
                         }
-                    }
-                });
+                    });
+
+                    // Меняем текст кнопки
+                    hideUncheckedBtn.textContent = 'Показать все';
+                } else {
+                    // РЕЖИМ ВОЗВРАТА
+                    // Проходимся по всем группам и маркерам в текущем дне
+                    this._currentGroups.forEach((group) => {
+                        group.marks.forEach((mark: any) => {
+                            const checkbox = this._container!.querySelector<HTMLInputElement>(`.child-mark[data-mark-id="${mark.id}"]`);
+
+                            // Если чекбокс существует и он НЕ отмечен,
+                            // значит этот маркер мы ранее скрыли (или он неактивен)
+                            if (checkbox && !checkbox.checked) {
+                                // Восстанавливаем маркер только если его нет на карте
+                                if (!markersState[group.id]?.[mark.id]) {
+                                    // Создаем СЕРЫЙ (неактивный) маркер, так как галочка снята
+                                    const newMarker = createMarker(mark.coordinates, mark.title, group.color, false);
+                                    markersState[group.id][mark.id] = newMarker;
+                                    if (window.map) window.map.addChild(newMarker);
+                                }
+                            }
+                        });
+                    });
+
+                    // Меняем текст кнопки
+                    hideUncheckedBtn.textContent = 'Скрыть неотмеченные';
+                }
             });
             // 👇 Определяем текущий день недели
             const daysMap: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -164,6 +194,7 @@ async function main() {
                 const selectedDay = (e.target as HTMLSelectElement).value;
                 this._clearAllMarkers();
                 this._container!.innerHTML = '';
+                hideUncheckedBtn.textContent = 'Скрыть неотмеченные';
                 this._currentGroups = buildGroupsForDay(selectedDay);
                 this._renderGroups(this._currentGroups);
                 if (window.map) this.initMarkersOnMap();
