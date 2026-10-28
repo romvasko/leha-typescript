@@ -126,25 +126,31 @@ async function main() {
             menuBody.appendChild(daySelector);
             // ... после daySelector ...
 
-// 👇 Добавляем кнопку "Скрыть отмеченные"
-const hideUncheckedBtn = document.createElement('button');
-hideUncheckedBtn.classList.add('menu-action-btn'); // Новый класс для стилизации
-hideUncheckedBtn.textContent = 'Скрыть неотмеченные';
-menuBody.appendChild(hideUncheckedBtn);
+            // 👇 Добавляем кнопку "Скрыть отмеченные"
+            const hideUncheckedBtn = document.createElement('button');
+            hideUncheckedBtn.classList.add('menu-action-btn'); // Новый класс для стилизации
+            hideUncheckedBtn.textContent = 'Скрыть неотмеченные';
+            menuBody.appendChild(hideUncheckedBtn);
 
-// 👇 Обработчик кнопки
-hideUncheckedBtn.addEventListener('click', () => {
-    // Проходимся по всем чекбоксам в контейнере меню
-    const allChildCheckboxes = this._container!.querySelectorAll<HTMLInputElement>('.child-mark');
+            // 👇 Обработчик кнопки (ЗАМЕНИТЕ ЕГО НА ЭТОТ)
+            hideUncheckedBtn.addEventListener('click', () => {
+                // Находим все чекбоксы магазинов, которые НЕ отмечены
+                const uncheckedBoxes = this._container!.querySelectorAll<HTMLInputElement>('.child-mark:not(:checked)');
 
-    allChildCheckboxes.forEach((checkbox) => {
-        if (!checkbox.checked) {
-            // Нам нужно понять, какому маркеру соответствует этот чекбокс
-            // Мы можем получить ID из какого-то атрибута или из data-атрибута
-            // В нашем случае, давайте свяжем чекбокс с маркером через dataset
-        }
-    });
-});
+                uncheckedBoxes.forEach((checkbox) => {
+                    const groupId = checkbox.dataset.groupId;
+                    const markId = checkbox.dataset.markId;
+
+                    if (groupId && markId) {
+                        const marker = markersState[groupId]?.[markId];
+                        // Если маркер есть на карте, удаляем его
+                        if (marker && window.map) {
+                            window.map.removeChild(marker);
+                            markersState[groupId][markId] = null; // Обнуляем состояние
+                        }
+                    }
+                });
+            });
             // 👇 Определяем текущий день недели
             const daysMap: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
             const todayIndex = new Date().getDay(); // 0 - воскресенье, 1 - понедельник и т.д.
@@ -263,25 +269,6 @@ hideUncheckedBtn.addEventListener('click', () => {
                         const allUnchecked = Array.from(allCheckboxes).every(cb => !cb.checked);
                         const parent = divElement.querySelector<HTMLInputElement>(`.parent-${group.id}`);
                         if (parent) parent.checked = !allUnchecked;
-                    });
-
-                    hideUncheckedBtn.addEventListener('click', () => {
-                        // 1. Находим все чекбоксы магазинов, которые НЕ отмечены
-                        const uncheckedBoxes = this._container!.querySelectorAll<HTMLInputElement>('.child-mark:not(:checked)');
-
-                        uncheckedBoxes.forEach((checkbox) => {
-                            const groupId = checkbox.dataset.groupId;
-                            const markId = checkbox.dataset.markId;
-
-                            if (groupId && markId) {
-                                const marker = markersState[groupId]?.[markId];
-                                // Если маркер есть на карте, удаляем его
-                                if (marker && window.map) {
-                                    window.map.removeChild(marker);
-                                    markersState[groupId][markId] = null; // Обнуляем состояние
-                                }
-                            }
-                        });
                     });
 
                     const markLabelElement = document.createElement('label');
